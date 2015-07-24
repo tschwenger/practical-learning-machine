@@ -1,0 +1,144 @@
+---
+title: "Practical Learning Machine Course Project Final"
+author: "Thomas Schwenger"
+date: "Friday, July 24, 2015"
+output: html_document
+---
+##Executive Summary
+
+The goal of this project was to select and build a prediction model to predict the "classe" variable based on data from the groupware dataset (getting data below). The data set was partitioned into a training and test data to be used in a random forest model. This model was chosen due to its high accuracy. The training model had an accuracy of 99.5% in predicting the test data. This model was then used to predict the other test set. 
+
+##Getting & Cleaning Data and loading useful packages
+
+The following packages were installed in order to clean, compute and process the data in this report. 
+
+```{r,message=FALSE,warning=FALSE}
+library(UsingR)
+library(plyr)
+library(dplyr)
+library(gridExtra)
+library(RANN)
+library(rattle)
+library(e1071)
+library(caret); library(kernlab); data(spam)
+library(randomForest)
+library(gbm)
+library(klaR)
+library(combinat)
+library(rpart)
+library(rpart.plot)
+```
+
+The data could be accessed by the following links:
+
+* training data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+* Saved to the following working directory: ~/pracmachlearn/pml-training-1.csv
+
+* test data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+* Saved to the following working directory: ~/pracmachlearn/pml-testing-1.csv
+
+The training and test files were both cleaned in the same fashion. First, columns were deleted that didn't contain any values. Second, the first seven columns were removed, because they were not predictors. 
+
+###Code to clean training data
+
+```{r}
+
+trainingdata <- read.csv("~/pracmachlearn/pml-training-1.csv", na.strings=c("NA","#DIV/0!", "")) 
+
+
+#since there are multiple columns without any values, these columns are removed from the data set. This gets rid of 100 variables
+trainingdata <- trainingdata[,colSums(is.na(trainingdata))==0]
+
+#The irrelevant data is also removed from the data set
+trainingdata <- select(trainingdata, -X, -user_name,-raw_timestamp_part_1,-raw_timestamp_part_2,-cvtd_timestamp,-new_window,-num_window)
+
+
+```
+
+###Code to clean test data
+
+```{r}
+
+testingdata <- read.csv("~/pracmachlearn/pml-testing-1.csv", na.strings=c("NA","#DIV/0!", "")) 
+
+
+#since there are multiple columns without any values, these columns are removed from the data set. This gets rid of 100 variables
+testingdata <- testingdata[,colSums(is.na(testingdata))==0]
+
+#The irrelevant data is also removed from the data set
+testingdata <- select(testingdata, -X, -user_name,-raw_timestamp_part_1,-raw_timestamp_part_2,-cvtd_timestamp,-new_window,-num_window)
+
+```
+
+## Creating Training and Test sets to build a model
+
+The training data set was then partitioned into a training and test set about the "classe" variable. The training set comprised 70% of the partitioned data and the test set was comprised of 30% of the original training data. 
+
+```{r}
+set.seed(69)
+inTrain <- createDataPartition(y=trainingdata$classe, p=.70,list=FALSE)
+
+training <- trainingdata[inTrain,]
+testing <- trainingdata[-inTrain,]
+dim(training);dim(testing)
+```
+
+##Exploratory Analysis
+
+For shits and giggles, exploratory analysis was conducted on the training set to observe the distribution of the "classe" variable. It's observed that "classe A" has the most observations. 
+
+```{r, message=FALSE,warning=FALSE}
+
+
+y = ggplot(training, aes(classe)) 
+y = y + geom_histogram()
+y = y + theme(axis.text.x=element_text(angle=0, hjust=1))
+y = y + stat_bin(binwidth=1, geom="text", aes(label=..count..),vjust=-.33)
+y = y + xlab("Classe")
+y = y + ggtitle("Training data Observations by classe")
+y = y + theme(plot.title = element_text(size = rel(2)))
+y = y + ylab("Count")
+y
+
+```
+
+
+
+##Model Selection: Random Forest
+
+Based on course lectures, a random forest model was selected, because its the most highly accurate model in this course teaches (not going to mess around with other models). The "classe" is fitted to all other variables in the training set. 
+
+
+```{r,warning=FALSE}
+modFit <- randomForest(classe ~. , data=training, method="class")
+
+prediction <- predict(modFit, testing,type= "class")
+
+confusionMatrix(prediction, testing$classe)
+
+```
+
+##Results
+Based on the confusion matrix, the training model was tested against the testing model with an accuracy of 99.5%.The expected out of sample error is 0.5% (1-accuracy or 1-.995=0.05). This is a highly accurate model and can expect to get the "test" data set correct since there are only 20 observations in the set. 
+
+##Predicting the final outcome for the test data
+
+The following code is used to predict the results of the test sample. The output is shown below. These answers were submitted online and were all correct. So the model was indeed accurate!
+
+
+```{r}
+
+answers <- predict(modFit, testingdata, type="class")
+answers
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+
+```
